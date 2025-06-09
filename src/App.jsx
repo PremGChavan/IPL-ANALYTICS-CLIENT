@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Bar } from "react-chartjs-2";
+import jsonData from "../data/ipl-stats.json";
 import {
   Chart as ChartJS,
   BarElement,
@@ -13,31 +14,40 @@ ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 const seasons = [2025, 2024, 2023, 2022, 2021];
 const statTypes = [
-  { label: "Orange Cap", value: "orange-cap" },
-  { label: "Most 4s", value: "most-fours" },
-  { label: "Most 6s", value: "most-sixes" },
-  { label: "Most Centuries", value: "most-centuries" },
-  { label: "Most Fifties", value: "most-fifties" },
+  { label: "Orange Cap", value: "orangeCap" },
+  { label: "Most 4s", value: "mostFours" },
+  { label: "Most 6s", value: "mostSixes" },
+  { label: "Most Centuries", value: "mostCenturies" },
+  { label: "Most Fifties", value: "mostFifties" },
 ];
 
 function App() {
   const [season, setSeason] = useState(2025);
-  const [statType, setStatType] = useState("orange-cap");
-  const [data, setData] = useState([]);
+  const [statType, setStatType] = useState("orangeCap");
+  const [filteredData, setFilteredData] = useState([]);
 
   useEffect(() => {
-    fetch(`http://localhost:3001/api/stats?season=${season}&type=${statType}`)
-      .then((res) => res.json())
-      .then((data) => setData(data));
+    const seasonKey = String(season); // Convert to string to match JSON keys
+    const seasonData = jsonData[seasonKey];
+
+    if (seasonData && seasonData[statType]) {
+      const cleaned = seasonData[statType].slice(0, 10).map((player) => ({
+        name: player.player,
+        value: parseInt(player.value.replace(/,/g, ""), 10),
+      }));
+      setFilteredData(cleaned);
+    } else {
+      setFilteredData([]);
+    }
   }, [season, statType]);
 
   const chartData = {
-    labels: data.map((d) => d.name),
+    labels: filteredData.map((p) => p.name),
     datasets: [
       {
         label: statTypes.find((t) => t.value === statType)?.label,
-        data: data.map((d) => d.value),
-        backgroundColor: "rgba(59, 130, 246, 0.7)", // blue-500
+        data: filteredData.map((p) => p.value),
+        backgroundColor: "rgba(59, 130, 246, 0.7)", // Tailwind blue-500
         borderRadius: 8,
       },
     ],
@@ -50,10 +60,10 @@ function App() {
           IPL Stats Dashboard
         </h1>
 
-        <div className="flex gap-4 justify-center mb-6">
+        <div className="flex flex-wrap justify-center gap-4 mb-6">
           <select
             value={season}
-            onChange={(e) => setSeason(e.target.value)}
+            onChange={(e) => setSeason(parseInt(e.target.value))}
             className="border px-4 py-2 rounded"
           >
             {seasons.map((s) => (
@@ -76,10 +86,14 @@ function App() {
           </select>
         </div>
 
-        <Bar data={chartData} />
+        {filteredData.length > 0 ? (
+          <Bar data={chartData} />
+        ) : (
+          <p className="text-center text-gray-500">No data available.</p>
+        )}
 
         <p className="text-center text-sm mt-4 text-gray-600">
-          Top 10 players in the selected category for IPL {season}.
+          Showing top 10 players in selected category for IPL {season}.
         </p>
       </div>
     </div>
